@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Questionnaire Activité Physique & Sédentarité — ONAPS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 16px; color: #222; font-size: 14px; }
+.container { max-width: 720px; margin: 0 auto; background: white; border-radius: 10px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+
+/* EN-TÊTE */
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+.header-left h1 { font-size: 1.1em; color: #222; font-weight: normal; }
+.header-left h1 strong { font-size: 1.25em; display: block; }
+.header-right { text-align: right; font-size: 0.8em; color: #666; }
+.onaps-badge { background: #eee; border-radius: 6px; padding: 4px 10px; font-weight: bold; color: #333; font-size: 0.85em; margin-bottom: 6px; }
+
+.intro { font-size: 0.85em; color: #444; margin-bottom: 12px; line-height: 1.5; }
+.intro-parts { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.intro-part { font-size: 0.82em; font-weight: bold; }
+.intro-part.a { color: #8B1A1A; }
+.intro-part.b { color: #B85C00; }
+.intro-part.c { color: #7A8A00; }
+
+/* Info patient */
+.patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; padding: 14px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
+.patient-field label { font-size: 0.82em; font-weight: bold; color: #555; display: block; margin-bottom: 4px; }
+.patient-field input, .patient-field select { width: 100%; border: none; border-bottom: 2px solid #ccc; padding: 4px 2px; font-size: 0.9em; background: transparent; outline: none; }
+.patient-field input:focus, .patient-field select:focus { border-bottom-color: #8B1A1A; }
+.sexe-row { display: flex; gap: 16px; align-items: center; }
+.sexe-row label { font-weight: normal; display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em; }
+
+/* PARTIES */
+.partie-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 6px; margin: 24px 0 4px;
+  font-weight: bold; font-size: 0.95em; color: white;
+}
+.partie-header.a { background: #8B1A1A; }
+.partie-header.b { background: #B85C00; }
+.partie-header.c { background: #7A8A00; }
+.partie-header .badge { font-size: 0.75em; opacity: 0.85; }
+.partie-note { font-size: 0.78em; color: #666; font-style: italic; margin-bottom: 12px; padding-left: 4px; }
+
+/* INTENSITE BOX */
+.intensite-box { background: #f8f8f8; border-left: 3px solid #ccc; padding: 10px 14px; margin-bottom: 14px; border-radius: 4px; font-size: 0.82em; color: #444; line-height: 1.5; }
+.intensite-box strong { color: #222; }
+
+/* QUESTION BLOCK */
+.q-block { margin-bottom: 14px; border-radius: 8px; border: 1px solid #e8e8e8; overflow: hidden; }
+.q-block.hidden { display: none; }
+.q-header { display: flex; align-items: stretch; min-height: 44px; }
+.q-num { min-width: 44px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1em; color: white; flex-shrink: 0; }
+.q-num.a { background: #8B1A1A; }
+.q-num.b { background: #B85C00; }
+.q-num.c { background: #7A8A00; }
+.q-title { padding: 10px 12px; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; flex: 1; }
+.q-title.a { background: #fdf0f0; color: #8B1A1A; }
+.q-title.b { background: #fdf6f0; color: #B85C00; }
+.q-title.c { background: #f8fae8; color: #7A8A00; }
+.q-note { font-size: 0.75em; font-weight: normal; color: #888; margin-top: 3px; font-style: italic; }
+
+.q-body { padding: 14px; background: white; }
+
+/* OUI/NON */
+.oui-non-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.oui-non-col { flex: 1; min-width: 140px; }
+.oui-non-col .col-title { font-size: 0.8em; font-weight: bold; color: #555; margin-bottom: 8px; }
+.oui-non-btns { display: flex; gap: 8px; }
+.toggle-btn {
+  flex: 1; padding: 9px 6px; border-radius: 6px; border: 2px solid #ddd;
+  background: white; cursor: pointer; font-weight: bold; font-size: 0.88em;
+  transition: all 0.15s; color: #555;
+}
+.toggle-btn:hover { border-color: #aaa; }
+.toggle-btn.active-oui { background: #5A7A2A; border-color: #5A7A2A; color: white; }
+.toggle-btn.active-non { background: #888; border-color: #888; color: white; }
+
+/* Champs jours/heures */
+.duration-cols { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.duration-col { flex: 1; min-width: 130px; background: #f8f8f8; border-radius: 6px; padding: 10px 12px; }
+.duration-col .col-label { font-size: 0.78em; font-weight: bold; color: #555; margin-bottom: 8px; }
+.duration-col .sub-fields { display: flex; flex-direction: column; gap: 6px; }
+.duration-field label { font-size: 0.75em; color: #777; display: block; margin-bottom: 2px; }
+.duration-field input { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 5px 8px; font-size: 0.9em; outline: none; }
+.duration-field input:focus { border-color: #8B1A1A; }
+.hm-row { display: flex; gap: 6px; align-items: center; }
+.hm-row input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 5px 6px; font-size: 0.9em; outline: none; text-align: center; }
+.hm-row span { font-size: 0.78em; color: #888; }
+
+/* Champs simples */
+.simple-field { margin-top: 8px; }
+.simple-field label { font-size: 0.8em; color: #666; display: block; margin-bottom: 4px; }
+.simple-field .hm-row { max-width: 180px; }
+
+/* Sports Q20 */
+.sports-cols { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.sports-col { flex: 1; min-width: 140px; background: #f8f8f8; border-radius: 6px; padding: 10px; }
+.sports-col .col-title { font-size: 0.78em; font-weight: bold; color: #555; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+.sports-col textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 6px; font-size: 0.85em; resize: vertical; min-height: 60px; outline: none; }
+.sports-col textarea:focus { border-color: #7A8A00; }
+.aucun-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.82em; color: #666; cursor: pointer; }
+.aucun-row input { cursor: pointer; }
+
+/* Q21 CSP */
+.csp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.csp-item { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 6px 8px; border-radius: 6px; border: 1px solid #eee; transition: background 0.15s; font-size: 0.82em; }
+.csp-item:hover { background: #f5f5f5; }
+.csp-item input { margin-top: 2px; cursor: pointer; flex-shrink: 0; }
+.csp-item.selected { background: #f0f8e8; border-color: #7A8A00; }
+
+/* BOUTONS */
+.btn-pdf { display: block; width: 100%; margin-top: 22px; padding: 14px; background: #8B1A1A; color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; }
+.btn-pdf:hover { background: #6a1212; }
+.btn-reset { display: block; width: 100%; margin-top: 8px; padding: 10px; background: white; color: #8B1A1A; border: 2px solid #8B1A1A; border-radius: 8px; font-size: 0.9em; cursor: pointer; }
+.btn-reset:hover { background: #fdf0f0; }
+
+.footer { margin-top: 20px; text-align: center; font-size: 0.73em; color: #aaa; font-style: italic; }
+@media(max-width:500px){ .patient-grid{grid-template-columns:1fr;} .csp-grid{grid-template-columns:1fr;} .oui-non-row{flex-direction:column;} .sports-cols{flex-direction:column;} }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- EN-TÊTE -->
+  <div class="header">
+    <div class="header-left">
+      <h1>QUESTIONNAIRE<br><strong>ACTIVITÉ PHYSIQUE &amp; SÉDENTARITÉ</strong></h1>
+      <div class="intro-parts">
+        <span class="intro-part a">PARTIE A : ACTIVITÉS AU TRAVAIL</span>
+        <span class="intro-part b">PARTIE B : DÉPLACEMENTS À BUT UTILITAIRE</span>
+        <span class="intro-part c">PARTIE C : ACTIVITÉS DE LOISIRS OU AU DOMICILE</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="onaps-badge">ONAPS</div>
+      <div>21 questions (Q1 à Q21)</div>
+      <div>Semaine habituelle<br>du LUNDI au DIMANCHE</div>
+    </div>
+  </div>
+
+  <!-- INFOS PATIENT -->
+  <div class="patient-grid">
+    <div class="patient-field">
+      <label>Nom / Prénom</label>
+      <input type="text" id="p-nom" placeholder="Votre nom et prénom">
+    </div>
+    <div class="patient-field">
+      <label>Date d'aujourd'hui (JJ/MM/AAAA)</label>
+      <input type="date" id="p-date">
+    </div>
+    <div class="patient-field">
+      <label>Âge</label>
+      <input type="number" id="p-age" placeholder="ex: 52" min="1" max="120">
+    </div>
+    <div class="patient-field">
+      <label>Sexe</label>
+      <div class="sexe-row">
+        <label><input type="radio" name="sexe" value="Femme"> Femme</label>
+        <label><input type="radio" name="sexe" value="Homme"> Homme</label>
+      </div>
+    </div>
+    <div class="patient-field" style="grid-column:1/-1">
+      <label>Exercez-vous actuellement une activité (rémunérée ou non), ou suivez-vous des études ou une formation ?</label>
+      <div class="oui-non-btns" style="margin-top:8px">
+        <button class="toggle-btn" id="travail-oui" onclick="setTravail('oui')">✓ OUI</button>
+        <button class="toggle-btn" id="travail-non" onclick="setTravail('non')">✗ NON → passer à la PARTIE B</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PARTIE A ═══════════ -->
+  <div class="partie-header a">
+    <span>PARTIE A</span>
+    <span style="font-size:1.1em">— ACTIVITÉS AU TRAVAIL</span>
+    <span class="badge">tout type de travail, rémunéré ou non, y compris bénévole et études</span>
+  </div>
+  <div id="partie-a">
+    <div class="intensite-box">
+      <strong>Activité physique : comment reconnaître l'intensité ?</strong><br>
+      🔴 <strong>Forte intensité</strong> : effort physique important, augmentation conséquente de la respiration ou du rythme cardiaque (ex : soulever des charges lourdes…)<br>
+      🟡 <strong>Intensité modérée</strong> : effort modéré, petite augmentation de la respiration ou du rythme cardiaque (ex : marcher à rythme soutenu, soulever des charges légères…)
+    </div>
+
+    <!-- Q1 -->
+    <div class="q-block" id="qb1">
+      <div class="q-header">
+        <div class="q-num a">Q1</div>
+        <div class="q-title a">Votre travail implique-t-il des tâches répétitives ou régulières ?
+          <div class="q-note">si NON pour les deux types d'intensité → passer à Q4</div>
+        </div>
+      </div>
+      <div class="q-body">
+        <div class="oui-non-row">
+          <div class="oui-non-col">
+            <div class="col-title">🔴 De forte intensité ?</div>
+            <div class="oui-non-btns">
+              <button class="toggle-btn" onclick="toggle(this,'q1fi','oui')">✓ OUI</button>
+              <button class="toggle-btn" onclick="toggle(this,'q1fi','non')">✗ NON</button>
+            </div>
+          </div>
+          <div class="oui-non-col">
+            <div class="col-title">🟡 D'intensité modérée ?</div>
+            <div class="oui-non-btns">
+              <button class="toggle-btn" onclick="toggle(this,'q1im','oui')">✓ OUI</button>
+              <button class="toggle-btn" onclick="toggle(this,'q1im','non')">✗ NON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 Q3 -->
+    <div class="q-block" id="qb23">
+      <div class="q-header">
+        <div class="q-num a">Q2</div>
+        <div class="q-title a">Habituellement, combien de jours par semaine effectuez-vous ces tâches répétitives ou régulières dans le cadre de votre travail ?</div>
+      </div>
+      <div class="q-body">
+        <div class="duration-cols">
+          <div class="duration-col">
+            <div class="col-label">🔴 Forte intensité</div>
+            <div class="sub-fields">
+              <div class="duration-field"><label>Nombre de jours / semaine</label><input type="number" id="q2fi-j" min="0" max="7" placeholder="0-7"></div>
+            </div>
+          </div>
+          <div class="duration-col">
+            <div class="col-label">🟡 Intensité modérée</div>
+            <div class="sub-fields">
+              <div class="duration-field"><label>Nombre de jours / semaine</label><input type="number" id="q2im-j" min="0" max="7" placeholder="0-7"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q3 — Combien de temps en moyenne par jour ?</div>
+        <div class="duration-cols" style="margin-top:6px">
+          <div class="duration-col">
+            <div class="col-label">🔴 Forte intensité</div>
+            <div class="hm-row"><input type="number" id="q3fi-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q3fi-m" min="0" max="59" placeholder="min"><span>min</span></div>
+          </div>
+          <div class="duration-col">
+            <div class="col-label">🟡 Intensité modérée</div>
+            <div class="hm-row"><input type="number" id="q3im-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q3im-m" min="0" max="59" placeholder="min"><span>min</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q-block" id="qb4">
+      <div class="q-header">
+        <div class="q-num a">Q4</div>
+        <div class="q-title a">Habituellement, combien de temps par jour en moyenne passez-vous assis pour votre travail ? <div class="q-note">(ne pas compter les temps de repas)</div></div>
+      </div>
+      <div class="q-body">
+        <div class="simple-field">
+          <label>Durée assise par jour</label>
+          <div class="hm-row"><input type="number" id="q4-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q4-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- fin partie-a -->
+
+  <!-- ═══════════ PARTIE B ═══════════ -->
+  <div class="partie-header b">PARTIE B — DÉPLACEMENTS À BUT UTILITAIRE</div>
+  <div class="partie-note">Déplacements habituels d'un endroit à l'autre : travail, courses, marché, ami, balade…</div>
+
+  <!-- Q5 -->
+  <div class="q-block" id="qb5">
+    <div class="q-header">
+      <div class="q-num b">Q5</div>
+      <div class="q-title b">Lors d'une semaine habituelle (week-end inclus), effectuez-vous des déplacements ?
+        <div class="q-note">si NON pour les 3 types → passer à Q8</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="oui-non-row">
+        <div class="oui-non-col">
+          <div class="col-title">🚶 À pied ? <span style="font-size:0.85em;color:#888">(≥10 min)</span></div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q5ap','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q5ap','non')">✗ NON</button>
+          </div>
+        </div>
+        <div class="oui-non-col">
+          <div class="col-title">🚲 À vélo / VAE ?</div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q5v','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q5v','non')">✗ NON</button>
+          </div>
+        </div>
+        <div class="oui-non-col">
+          <div class="col-title">🛴 Autre mode actif ? <span style="font-size:0.85em;color:#888">(roller, trottinette…)</span></div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q5a','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q5a','non')">✗ NON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q6 Q7 -->
+  <div class="q-block" id="qb67">
+    <div class="q-header">
+      <div class="q-num b">Q6</div>
+      <div class="q-title b">Habituellement, combien de jours par semaine effectuez-vous ces trajets ?</div>
+    </div>
+    <div class="q-body">
+      <div class="duration-cols">
+        <div class="duration-col">
+          <div class="col-label">🚶 À pied</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q6ap-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🚲 À vélo / VAE</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q6v-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🛴 Autre mode actif</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q6a-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q7 — Combien de temps en moyenne par jour ?</div>
+      <div class="duration-cols" style="margin-top:6px">
+        <div class="duration-col">
+          <div class="col-label">🚶 À pied</div>
+          <div class="hm-row"><input type="number" id="q7ap-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q7ap-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🚲 À vélo / VAE</div>
+          <div class="hm-row"><input type="number" id="q7v-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q7v-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🛴 Autre mode actif</div>
+          <div class="hm-row"><input type="number" id="q7a-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q7a-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q8 -->
+  <div class="q-block" id="qb8">
+    <div class="q-header">
+      <div class="q-num b">Q8</div>
+      <div class="q-title b">Lors d'une semaine habituelle, utilisez-vous des moyens de transport motorisés pour certains de vos déplacements ?
+        <div class="q-note">Voiture, moto, scooter, transports en commun… (sauf VAE)</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="oui-non-btns">
+        <button class="toggle-btn" onclick="toggle(this,'q8','oui')">✓ OUI</button>
+        <button class="toggle-btn" onclick="toggle(this,'q8','non')">✗ NON → passer à Q11</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q9 Q10 -->
+  <div class="q-block" id="qb910">
+    <div class="q-header">
+      <div class="q-num b">Q9</div>
+      <div class="q-title b">Habituellement, combien de jours par semaine effectuez-vous ces trajets motorisés ?</div>
+    </div>
+    <div class="q-body">
+      <div class="simple-field">
+        <label>Nombre de jours / semaine</label>
+        <input type="number" id="q9-j" min="0" max="7" placeholder="0-7" style="max-width:100px;border:1px solid #ddd;border-radius:4px;padding:5px 8px">
+      </div>
+      <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q10 — Lors d'une journée, combien de temps durent l'ensemble de ces trajets motorisés ?</div>
+      <div class="hm-row" style="margin-top:6px">
+        <input type="number" id="q10-h" min="0" max="24" placeholder="h"><span>h</span>
+        <input type="number" id="q10-m" min="0" max="59" placeholder="min"><span>min</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PARTIE C ═══════════ -->
+  <div class="partie-header c">PARTIE C — ACTIVITÉS DE LOISIRS OU AU DOMICILE</div>
+  <div class="partie-note">Exclure les activités liées au travail et aux déplacements déjà mentionnés. Semaine habituelle du LUNDI au DIMANCHE.</div>
+
+  <div class="intensite-box">
+    <strong>Rappel intensité :</strong><br>
+    🔴 <strong>Forte</strong> : courir, football, nager, squash, arts martiaux, zumba, vélo soutenu…<br>
+    🟡 <strong>Modérée</strong> : marche soutenue, vélo VAE modéré, randonnée, danse, jardinage, gym, renforcement musculaire, ping-pong…
+  </div>
+
+  <!-- Q11 Q12 Q13 -->
+  <div class="q-block" id="qb11">
+    <div class="q-header">
+      <div class="q-num c">Q11</div>
+      <div class="q-title c">Lors d'une semaine habituelle (week-end inclus), effectuez-vous des tâches ménagères au domicile, à l'intérieur ou à l'extérieur ?
+        <div class="q-note">Ex : aspirateur, laver le sol, tondre la pelouse…</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="oui-non-btns">
+        <button class="toggle-btn" onclick="toggle(this,'q11','oui')">✓ OUI</button>
+        <button class="toggle-btn" onclick="toggle(this,'q11','non')">✗ NON → passer à Q14</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block" id="qb1213">
+    <div class="q-header">
+      <div class="q-num c">Q12</div>
+      <div class="q-title c">Habituellement, combien de jours par semaine effectuez-vous ces tâches ménagères ?</div>
+    </div>
+    <div class="q-body">
+      <div class="simple-field">
+        <label>Nombre de jours / semaine</label>
+        <input type="number" id="q12-j" min="0" max="7" placeholder="0-7" style="max-width:100px;border:1px solid #ddd;border-radius:4px;padding:5px 8px">
+      </div>
+      <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q13 — Combien de temps en moyenne par jour de pratique ?</div>
+      <div class="hm-row" style="margin-top:6px">
+        <input type="number" id="q13-h" min="0" max="24" placeholder="h"><span>h</span>
+        <input type="number" id="q13-m" min="0" max="59" placeholder="min"><span>min</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q14 -->
+  <div class="q-block" id="qb14">
+    <div class="q-header">
+      <div class="q-num c">Q14</div>
+      <div class="q-title c">Lors d'une semaine habituelle, pratiquez-vous des activités sportives ou des activités physiques de loisirs ?
+        <div class="q-note">si NON pour les deux types → passer à Q17</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="oui-non-row">
+        <div class="oui-non-col">
+          <div class="col-title">🔴 De forte intensité ?</div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q14fi','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q14fi','non')">✗ NON</button>
+          </div>
+        </div>
+        <div class="oui-non-col">
+          <div class="col-title">🟡 D'intensité modérée ?</div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q14im','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q14im','non')">✗ NON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q15 Q16 -->
+  <div class="q-block" id="qb1516">
+    <div class="q-header">
+      <div class="q-num c">Q15</div>
+      <div class="q-title c">Habituellement, combien de jours par semaine pratiquez-vous ces activités sportives ou de loisirs ?</div>
+    </div>
+    <div class="q-body">
+      <div class="duration-cols">
+        <div class="duration-col">
+          <div class="col-label">🔴 Forte intensité</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q15fi-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🟡 Intensité modérée</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q15im-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q16 — Combien de temps en moyenne par jour ?</div>
+      <div class="duration-cols" style="margin-top:6px">
+        <div class="duration-col">
+          <div class="col-label">🔴 Forte intensité</div>
+          <div class="hm-row"><input type="number" id="q16fi-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q16fi-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">🟡 Intensité modérée</div>
+          <div class="hm-row"><input type="number" id="q16im-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q16im-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q17 Q18 Q19 -->
+  <div class="q-block" id="qb17">
+    <div class="q-header">
+      <div class="q-num c">Q17</div>
+      <div class="q-title c">Lors d'une semaine habituelle, passez-vous du temps à des activités assises ou allongées (hors sommeil), chez vous ou lors de vos loisirs ?
+        <div class="q-note">si NON pour les deux types → passer à Q20</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="oui-non-row">
+        <div class="oui-non-col">
+          <div class="col-title">📺 Devant un écran ?<br><span style="font-size:0.8em;color:#888">TV, jeux vidéo, ordi, tablette, smartphone…</span></div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q17ec','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q17ec','non')">✗ NON</button>
+          </div>
+        </div>
+        <div class="oui-non-col">
+          <div class="col-title">📚 Autres que devant un écran ?<br><span style="font-size:0.8em;color:#888">Lecture, dessin, couture, discussion…</span></div>
+          <div class="oui-non-btns">
+            <button class="toggle-btn" onclick="toggle(this,'q17au','oui')">✓ OUI</button>
+            <button class="toggle-btn" onclick="toggle(this,'q17au','non')">✗ NON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block" id="qb1819">
+    <div class="q-header">
+      <div class="q-num c">Q18</div>
+      <div class="q-title c">Habituellement, lors de combien de jours par semaine passez-vous du temps à ces activités assises ou allongées ?</div>
+    </div>
+    <div class="q-body">
+      <div class="duration-cols">
+        <div class="duration-col">
+          <div class="col-label">📺 Devant un écran</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q18ec-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">📚 Autres (hors écran)</div>
+          <div class="duration-field"><label>Jours / semaine</label><input type="number" id="q18au-j" min="0" max="7" placeholder="0-7"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-weight:bold;font-size:0.85em;color:#555">Q19 — Lors d'une journée, combien de temps en moyenne ?</div>
+      <div class="duration-cols" style="margin-top:6px">
+        <div class="duration-col">
+          <div class="col-label">📺 Devant un écran</div>
+          <div class="hm-row"><input type="number" id="q19ec-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q19ec-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+        <div class="duration-col">
+          <div class="col-label">📚 Autres (hors écran)</div>
+          <div class="hm-row"><input type="number" id="q19au-h" min="0" max="24" placeholder="h"><span>h</span><input type="number" id="q19au-m" min="0" max="59" placeholder="min"><span>min</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q20 -->
+  <div class="q-block" id="qb20">
+    <div class="q-header">
+      <div class="q-num c">Q20</div>
+      <div class="q-title c">Veuillez préciser la nature du ou des sport(s) que vous pratiquez lors de vos loisirs, en fonction de leur fréquence de pratique :</div>
+    </div>
+    <div class="q-body">
+      <div class="sports-cols">
+        <div class="sports-col">
+          <div class="col-title">≥ 3 fois / semaine</div>
+          <textarea id="q20-3" placeholder="Sport(s) pratiqué(s)…"></textarea>
+          <label class="aucun-row"><input type="checkbox" id="q20-3-aucun"> Aucun</label>
+        </div>
+        <div class="sports-col">
+          <div class="col-title">1 à 2 fois / semaine</div>
+          <textarea id="q20-2" placeholder="Sport(s) pratiqué(s)…"></textarea>
+          <label class="aucun-row"><input type="checkbox" id="q20-2-aucun"> Aucun</label>
+        </div>
+        <div class="sports-col">
+          <div class="col-title">&gt; 1 fois/mois mais &lt; 1 fois/semaine</div>
+          <textarea id="q20-1" placeholder="Sport(s) pratiqué(s)…"></textarea>
+          <label class="aucun-row"><input type="checkbox" id="q20-1-aucun"> Aucun</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q21 -->
+  <div class="q-block" id="qb21">
+    <div class="q-header">
+      <div class="q-num c">Q21</div>
+      <div class="q-title c">Quelle est votre catégorie socioprofessionnelle ?
+        <div class="q-note">Une seule case. Si au chômage, cochez votre catégorie antérieure.</div>
+      </div>
+    </div>
+    <div class="q-body">
+      <div class="csp-grid" id="csp-grid">
+        <label class="csp-item"><input type="radio" name="csp" value="Agriculteurs exploitants"> Agriculteurs exploitants</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Ouvriers (y compris agricoles)"> Ouvriers (y compris agricoles)</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Artisans, commerçants et chefs d'entreprise"> Artisans, commerçants et chefs d'entreprise</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Professions intermédiaires"> Professions intermédiaires (prof. des écoles, infirmier, assistant social, technicien…)</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Employés"> Employés (bureau, commerce, garde d'enfants, agent de service…)</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Retraités"> Retraités</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Cadres et professions intellectuelles supérieures"> Cadres et professions intellectuelles supérieures (ingénieur, médecin…)</label>
+        <label class="csp-item"><input type="radio" name="csp" value="Étudiants"> Étudiants</label>
+        <label class="csp-item" style="grid-column:1/-1"><input type="radio" name="csp" value="Autres inactifs"> Autres inactifs (ex : parent au foyer)</label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-pdf" onclick="genererPDF()">📄 Télécharger le PDF</button>
+  <button class="btn-reset" onclick="resetForm()">🔄 Recommencer</button>
+
+  <div class="footer">Clement BRABANT — Intervenant Prescri'mouv — 06 38 51 45 75 — clement.brabant@gmail.com</div>
+</div>
+
+<script>
+const { jsPDF } = window.jspdf;
+const state = {};
+
+function setTravail(val) {
+  state['travail'] = val;
+  document.getElementById('travail-oui').className = 'toggle-btn' + (val==='oui'?' active-oui':'');
+  document.getElementById('travail-non').className = 'toggle-btn' + (val==='non'?' active-non':'');
+  document.getElementById('partie-a').style.display = val==='oui' ? 'block' : 'none';
+}
+
+function toggle(btn, key, val) {
+  state[key] = val;
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.toggle-btn').forEach(b => {
+    b.className = 'toggle-btn';
+    if (b === btn) b.className += val==='oui' ? ' active-oui' : ' active-non';
+  });
+}
+
+// Highlight CSP
+document.querySelectorAll('.csp-item input').forEach(inp => {
+  inp.addEventListener('change', () => {
+    document.querySelectorAll('.csp-item').forEach(el => el.classList.remove('selected'));
+    if (inp.checked) inp.closest('.csp-item').classList.add('selected');
+  });
+});
+
+function v(id) { const el = document.getElementById(id); return el ? (el.value || '—') : '—'; }
+function vb(id) { const el = document.getElementById(id); return el ? (el.checked ? 'Oui' : '') : ''; }
+function hm(hid, mid) { const h=v(hid), m=v(mid); if(h==='—'&&m==='—') return '—'; return `${h==='—'?'0':h}h${m==='—'?'00':m}min`; }
+function oui(key) { return state[key]==='oui' ? 'OUI' : state[key]==='non' ? 'NON' : '—'; }
+
+function genererPDF() {
+  const nom = document.getElementById('p-nom').value.trim() || 'Patient';
+  const date = document.getElementById('p-date').value ? new Date(document.getElementById('p-date').value).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+  const age = v('p-age');
+  const sexeEl = document.querySelector('input[name="sexe"]:checked');
+  const sexe = sexeEl ? sexeEl.value : '—';
+  const cspEl = document.querySelector('input[name="csp"]:checked');
+  const csp = cspEl ? cspEl.value : '—';
+
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W=210, mL=14, mR=14, uw=W-mL-mR;
+  let y=14;
+
+  function header(text, r,g,b) {
+    doc.setFillColor(r,g,b); doc.rect(mL,y,uw,8,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text(text, mL+3, y+5.5); y+=11; doc.setTextColor(30,30,30);
+  }
+  function row(label, val, indent=0) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.setTextColor(80,80,80);
+    doc.text(label, mL+indent, y);
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(30,30,30);
+    const lines = doc.splitTextToSize(String(val), uw-indent-50);
+    doc.text(lines, mL+indent+85, y);
+    y += Math.max(5, lines.length*4.5);
+    if(y>275){doc.addPage();y=14;}
+  }
+  function sep() { doc.setDrawColor(220,220,220); doc.line(mL,y,W-mR,y); y+=4; }
+
+  // TITRE
+  doc.setFillColor(60,60,60); doc.rect(mL,y,uw,10,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('QUESTIONNAIRE ACTIVITÉ PHYSIQUE & SÉDENTARITÉ — ONAPS', W/2, y+6.8, {align:'center'});
+  y+=14;
+
+  // Infos patient
+  doc.setFillColor(245,245,245); doc.rect(mL,y,uw,16,'F');
+  doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text(`Patient : ${nom}`, mL+3, y+5);
+  doc.text(`Date : ${date}`, mL+3, y+11);
+  doc.setFont('helvetica','normal');
+  doc.text(`Âge : ${age} ans   |   Sexe : ${sexe}   |   Travail/études : ${oui('travail')}`, mL+90, y+5);
+  doc.text(`CSP : ${csp}`, mL+90, y+11);
+  y+=20;
+
+  // PARTIE A
+  header('PARTIE A — ACTIVITÉS AU TRAVAIL', 139,26,46);
+  row('Q1 — Tâches répétitives forte intensité :', oui('q1fi'));
+  row('Q1 — Tâches répétitives intensité modérée :', oui('q1im'));
+  sep();
+  row('Q2 — Jours/semaine forte intensité :', v('q2fi-j'));
+  row('Q2 — Jours/semaine intensité modérée :', v('q2im-j'));
+  row('Q3 — Durée/jour forte intensité :', hm('q3fi-h','q3fi-m'));
+  row('Q3 — Durée/jour intensité modérée :', hm('q3im-h','q3im-m'));
+  sep();
+  row('Q4 — Temps assis au travail/jour :', hm('q4-h','q4-m'));
+  y+=3;
+
+  // PARTIE B
+  header('PARTIE B — DÉPLACEMENTS À BUT UTILITAIRE', 184,92,0);
+  row('Q5 — Déplacements à pied :', oui('q5ap'));
+  row('Q5 — Déplacements à vélo/VAE :', oui('q5v'));
+  row('Q5 — Autre mode actif :', oui('q5a'));
+  sep();
+  row('Q6 — Jours/semaine à pied :', v('q6ap-j'));
+  row('Q6 — Jours/semaine à vélo/VAE :', v('q6v-j'));
+  row('Q6 — Jours/semaine autre mode actif :', v('q6a-j'));
+  row('Q7 — Durée/jour à pied :', hm('q7ap-h','q7ap-m'));
+  row('Q7 — Durée/jour à vélo/VAE :', hm('q7v-h','q7v-m'));
+  row('Q7 — Durée/jour autre mode actif :', hm('q7a-h','q7a-m'));
+  sep();
+  row('Q8 — Transport motorisé :', oui('q8'));
+  row('Q9 — Jours/semaine motorisé :', v('q9-j'));
+  row('Q10 — Durée/jour trajets motorisés :', hm('q10-h','q10-m'));
+  y+=3;
+
+  // PARTIE C
+  header('PARTIE C — ACTIVITÉS DE LOISIRS OU AU DOMICILE', 122,138,42);
+  row('Q11 — Tâches ménagères :', oui('q11'));
+  row('Q12 — Jours/semaine tâches ménagères :', v('q12-j'));
+  row('Q13 — Durée/jour tâches ménagères :', hm('q13-h','q13-m'));
+  sep();
+  row('Q14 — Activités sportives forte intensité :', oui('q14fi'));
+  row('Q14 — Activités sportives intensité modérée :', oui('q14im'));
+  row('Q15 — Jours/semaine forte intensité :', v('q15fi-j'));
+  row('Q15 — Jours/semaine intensité modérée :', v('q15im-j'));
+  row('Q16 — Durée/jour forte intensité :', hm('q16fi-h','q16fi-m'));
+  row('Q16 — Durée/jour intensité modérée :', hm('q16im-h','q16im-m'));
+  sep();
+  row('Q17 — Activités assises devant écran :', oui('q17ec'));
+  row('Q17 — Activités assises hors écran :', oui('q17au'));
+  row('Q18 — Jours/semaine devant écran :', v('q18ec-j'));
+  row('Q18 — Jours/semaine hors écran :', v('q18au-j'));
+  row('Q19 — Durée/jour devant écran :', hm('q19ec-h','q19ec-m'));
+  row('Q19 — Durée/jour hors écran :', hm('q19au-h','q19au-m'));
+  sep();
+  const s3 = document.getElementById('q20-3-aucun').checked ? 'Aucun' : (v('q20-3'));
+  const s2 = document.getElementById('q20-2-aucun').checked ? 'Aucun' : (v('q20-2'));
+  const s1 = document.getElementById('q20-1-aucun').checked ? 'Aucun' : (v('q20-1'));
+  row('Q20 — Sports ≥ 3 fois/semaine :', s3);
+  row('Q20 — Sports 1-2 fois/semaine :', s2);
+  row('Q20 — Sports > 1 fois/mois < 1/sem :', s1);
+  sep();
+  row('Q21 — Catégorie socioprofessionnelle :', csp);
+
+  // Pied de page
+  doc.setTextColor(180,180,180); doc.setFont('helvetica','italic'); doc.setFontSize(7);
+  doc.text("Clement BRABANT — Intervenant Prescri'mouv — 06 38 51 45 75 — clement.brabant@gmail.com", W/2, 290, {align:'center'});
+
+  doc.save(`ONAPS_AP_Sedentarite_${nom.replace(/\s+/g,'_')}.pdf`);
+}
+
+function resetForm() {
+  document.querySelectorAll('input[type=number], input[type=text], input[type=date], textarea').forEach(el => el.value='');
+  document.querySelectorAll('input[type=radio], input[type=checkbox]').forEach(el => el.checked=false);
+  document.querySelectorAll('.toggle-btn').forEach(el => el.className='toggle-btn');
+  document.querySelectorAll('.csp-item').forEach(el => el.classList.remove('selected'));
+  Object.keys(state).forEach(k=>delete state[k]);
+  document.getElementById('partie-a').style.display='block';
+}
+
+document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
